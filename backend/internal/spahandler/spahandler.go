@@ -2,8 +2,8 @@ package spahandler
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
+
+	"github.com/retrokyo/basedchat/internal/frontend"
 )
 
 type SpaHandler struct {
@@ -12,18 +12,10 @@ type SpaHandler struct {
 }
 
 func (handler SpaHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
-	path := filepath.Join(handler.StaticPath, req.URL.Path)
-
-	fi, err := os.Stat(path)
-	if os.IsNotExist(err) || fi.IsDir() {
-		http.ServeFile(writer, req, filepath.Join(handler.StaticPath, handler.IndexPath))
+	if !frontend.EmbeddedFS.Exists(handler.StaticPath, req.URL.Path) {
+		http.FileServer(frontend.FallbackFS).ServeHTTP(writer, req)
 		return
 	}
 
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	http.FileServer(http.Dir(handler.StaticPath)).ServeHTTP(writer, req)
+	http.FileServer(frontend.EmbeddedFS).ServeHTTP(writer, req)
 }
